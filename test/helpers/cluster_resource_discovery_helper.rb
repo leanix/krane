@@ -25,16 +25,4 @@ module ClusterResourceDiscoveryHelper
         .returns([apis_full_response(path), "", stub(success?: true)])
     end
   end
-
-  def api_versions_full_response
-    File.read(File.join(fixture_path('for_unit_tests'), "api_versions.txt"))
-  end
-
-  def api_resources_namespaced_full_response
-    File.read(File.join(fixture_path('for_unit_tests'), "api_resources_namespaced.txt"))
-  end
-
-  def api_resources_not_namespaced_full_response
-    File.read(File.join(fixture_path('for_unit_tests'), "api_resources_global.txt"))
-  end
 end

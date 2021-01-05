@@ -17,7 +17,7 @@ module Krane
     end
 
     def prunable_resources(namespaced:)
-      black_list = %w(Namespace Node ControllerRevision NodeProxyOptions)
+      black_list = %w(Namespace Node ControllerRevision)
       fetch_resources(namespaced: namespaced).uniq { |r| r["kind"] }.map do |resource|
         next unless resource["verbs"].one? { |v| v == "delete" }
         next if black_list.include?(resource["kind"])
@@ -30,7 +30,7 @@ module Krane
       api_paths.flat_map do |path|
         resources = fetch_api_path(path)["resources"] || []
         resources.map { |r| resource_hash(path, namespaced, r) }.compact
-      end
+      end.uniq { |r| r["kind"] }
     end
 
     private
@@ -56,9 +56,8 @@ module Krane
 
     def resource_hash(path, namespaced, blob)
       return unless blob["namespaced"] == namespaced
-      return unless blob["verbs"] && blob["kind"]
-
-      path_regex = /(\/apis?\/)(?<group>[^\/]*)\/?(?<version>v.+)/
+      return if blob["name"].include?("/")
+      path_regex = %r{(/apis?/)(?<group>[^/]*)/?(?<version>v.+)}
       match = path.match(path_regex)
       group = match[:group]
       version = match[:version]
