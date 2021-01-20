@@ -50,7 +50,8 @@ module Krane
       if st.success?
         JSON.parse(raw_json)
       else
-        raise FatalKubeAPIError, "Error retrieving api path: #{err}"
+        logger.warn("Error retrieving api path: #{err}")
+        {}
       end
     end
 
@@ -64,7 +65,7 @@ module Krane
         "verbs" => blob["verbs"],
         "kind" => blob["kind"],
         "apigroup" => match[:group],
-        "version" =>  match[:version],
+        "version" => match[:version],
       }
     end
 
@@ -96,7 +97,7 @@ module Krane
     end
 
     def kubectl
-      @kubectl ||= Kubectl.new(task_config: @task_config, log_failure_by_default: true)
+      @kubectl ||= Kubectl.new(task_config: @task_config, log_failure_by_default: true, default_timeout: 1)
     end
   end
 end
