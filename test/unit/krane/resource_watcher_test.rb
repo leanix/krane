@@ -124,13 +124,13 @@ class ResourceWatcherTest < Krane::TestCase
   end
 
   def test_timeout_raises_after_timeout_seconds
-    stub_kind_get("MockResource", times: 3)
     mocked_cluster_resource_discovery
+    stub_kind_get("MockResource", times: 3)
     resource = build_mock_resource(hits_to_complete: 10**100)
     watcher = Krane::ResourceWatcher.new(resources: [resource],
-      timeout: 0.02, task_config: task_config(namespace: 'test'))
+      timeout: 0.2, task_config: task_config(namespace: 'test'))
 
-    assert_raises(Krane::DeploymentTimeoutError) { watcher.run(delay_sync: 0.01) }
+    assert_raises(Krane::DeploymentTimeoutError) { watcher.run(delay_sync: 0.1) }
   end
 
   private

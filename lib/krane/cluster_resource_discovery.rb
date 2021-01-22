@@ -7,6 +7,7 @@ module Krane
     def initialize(task_config:, namespace_tags: [])
       @task_config = task_config
       @namespace_tags = namespace_tags
+      @api_path_cache = {}
     end
 
     def crds
@@ -21,8 +22,7 @@ module Krane
       fetch_resources(namespaced: namespaced).map do |resource|
         next unless resource["verbs"].one? { |v| v == "delete" }
         next if black_list.include?(resource["kind"])
-        version = resource["version"]
-        [resource["apigroup"], version, resource["kind"]].compact.join("/")
+        [resource["apigroup"], resource["version"], resource["kind"]].compact.join("/")
       end.compact
     end
 
@@ -36,22 +36,26 @@ module Krane
     private
 
     def api_paths
-      raw_json, err, st = kubectl.run("get", "--raw", "/", attempts: 5, use_namespace: false)
-      paths = if st.success?
-        JSON.parse(raw_json)["paths"]
-      else
-        raise FatalKubeAPIError, "Error retrieving raw path /: #{err}"
+      @api_path_cache["/"] ||= begin
+        raw_json, err, st = kubectl.run("get", "--raw", "/", attempts: 5, use_namespace: false)
+        paths = if st.success?
+          JSON.parse(raw_json)["paths"]
+        else
+          raise FatalKubeAPIError, "Error retrieving raw path /: #{err}"
+        end
+        paths.select { |path| path.start_with?("/api") }
       end
-      paths.select { |path| path.start_with?("/api") }
     end
 
     def fetch_api_path(path)
-      raw_json, err, st = kubectl.run("get", "--raw", path, attempts: 5, use_namespace: false)
-      if st.success?
-        JSON.parse(raw_json)
-      else
-        logger.warn("Error retrieving api path: #{err}")
-        {}
+      @api_path_cache[path] ||= begin
+        raw_json, err, st = kubectl.run("get", "--raw", path, attempts: 5, use_namespace: false)
+        if st.success?
+          JSON.parse(raw_json)
+        else
+          logger.warn("Error retrieving api path: #{err}")
+          {}
+        end
       end
     end
 
