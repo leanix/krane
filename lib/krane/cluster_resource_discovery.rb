@@ -27,10 +27,13 @@ module Krane
     end
 
     def fetch_resources(namespaced: false)
-      api_paths.flat_map do |path|
-        resources = fetch_api_path(path)["resources"] || []
-        resources.map { |r| resource_hash(path, namespaced, r) }.compact
-      end.uniq { |r| r["kind"] }
+      responses = {}
+      Krane::Concurrency.split_across_threads(api_paths) do |path|
+        responses[path] = fetch_api_path(path)["resources"] || []
+      end
+      responses.flat_map do |path, resources|
+        resources.map { |r| resource_hash(path, namespaced, r) }
+      end.compact.uniq { |r| r["kind"] }
     end
 
     private
@@ -43,13 +46,13 @@ module Krane
         else
           raise FatalKubeAPIError, "Error retrieving raw path /: #{err}"
         end
-        paths.select { |path| path.start_with?("/api") }
+        paths.select { |path| %r{^\/api.*\/v.*$}.match(path) }
       end
     end
 
     def fetch_api_path(path)
       @api_path_cache[path] ||= begin
-        raw_json, err, st = kubectl.run("get", "--raw", path, attempts: 5, use_namespace: false)
+        raw_json, err, st = kubectl.run("get", "--raw", path, attempts: 2, use_namespace: false)
         if st.success?
           JSON.parse(raw_json)
         else
